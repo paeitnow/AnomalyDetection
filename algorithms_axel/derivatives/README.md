@@ -29,7 +29,7 @@ Este script implementa el método de diferencias finitas para calcular la deriva
 
 #### Parámetros: 
 - **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
-- ***window_size:** Número de valores siguientes para calcular la media futura
+- **window_size:** Número de valores siguientes para calcular la media futura
 
 #### Ejemplo de ejecución:
 ![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_ventana.png)
