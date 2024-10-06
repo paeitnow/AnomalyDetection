@@ -1,9 +1,13 @@
-﻿# AnomalyDetection
+# Utils
 
-- [**Moving Windows**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/moving_window): Methods for smoothing and detecting anomalies in signals using moving window techniques.
-- [**Derivatives**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/derivatives): Calculating signal derivatives to identify sharp changes or trends.
-- [**Autocorrelation**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/autocorrelation): Algorithms to compute autocorrelation in signals to identify repeating patterns or anomalies.
-- [**Period Calculation**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/period_calculation): Tools to find significant periods in signals using different approaches.
-- [**Period Comparison**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/comparison): Algorithms to compare different periods of the signals to detect similarities or anomalies.
-- [**Correlation**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/correlation): Calculating the correlation between signals and methods for identifying potential anomalies in their patterns.
-- [**Optimization**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/optimization): Methods to optimize performance in anomaly detection by adjusting thresholds or evaluation metrics like `Recall` or `F1 Score`.
+En esta carpeta se encuentran funciones que permiten realizar operaciones que serán útiles en otros scripts.
+
+## Contenido de la carpeta
+
+### 1. `operaciones.py`
+
+Este script tiene varias funciones útiles.
+
+#### Funciones:
+- **calcular_periodo(ruta_csv, min_distance, prominence, threshold_percentage):** A partir de la ruta pasada como parámetro y los parámetros siguientes, calcula y devuelve el periodo de dicha señal
+- **calcular_camino_optimo_mejorada(matriz_correlacion, umbral_correlacion):** A partir de la matriz de correlación y un umbral de correlación (poco relevante), devolvemos los mejores periodos que utilizaremos como periodos de referencia para analizar las señales
