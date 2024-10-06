@@ -4,18 +4,17 @@ En esta carpeta se encuentran algoritmos relacionados con el cálculo de la auto
 
 ## Contenido de la carpeta
 
-### 1. `autocorrelation.py`
+### 1. `signal_tf_autocorrelacion.py`
 
-Este script implementa el cálculo de la autocorrelación para una serie de datos. La autocorrelación mide la similitud de los datos con versiones desplazadas de sí mismos, lo que ayuda a identificar patrones repetitivos o periodicidad.
+Este script muestra la señal original, calcula su Transformada de Fourier y muestra su gráfica. También realiza la autocorrelación y muestra su gráfica. 
 
 #### Descripción:
-- **Entrada:** Una lista de datos numéricos (como una serie temporal) y el número máximo de lags que se desean analizar.
-- **Salida:** Un gráfico o una lista que muestra los valores de autocorrelación para cada lag.
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos la señal de entrada, otra con la Transformada de Fourier de dicha señal, y otra con la autocorrelación.
 
-## Aplicaciones
+#### Notas:
+- Estas gráficas dan una idea de cómo se comportan las señales
+- A partir del calculo de la autocorrelación podemos calcular el periodo de las señales tal y como hemos hecho en [**Period Calculation**](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/period_calculation):
 
-- **Series temporales:** para identificar patrones cíclicos o estacionales en datos financieros, meteorológicos o de otro tipo.
-- **Procesamiento de señales:** para detectar la presencia de componentes repetitivas en señales discretas.
-- **Análisis predictivo:** para comprender la dependencia de los datos en función del tiempo.
-
-Este script es una herramienta fundamental para cualquier análisis de series temporales.
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/autocorrelation/image_signal_tf_autocorrelacion.png)
