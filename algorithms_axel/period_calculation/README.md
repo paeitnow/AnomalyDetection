@@ -81,7 +81,7 @@ Este script muestra la autocorrelación de la señal de entrada y el umbral esta
 #### Parámetros:
 - **threshold_percentage:** Este valor puede ser ajustado según la señal.
 - **min_distance:** Mínima distancia entre picos para considerarlos como distintos
-- **prominence** Ajusta la prominencia para filtrar picos más pequeños
+- **prominence:** Ajusta la prominencia para filtrar picos más pequeños
 
 #### Notas:
 - La prominencia y la mínima distancia nos permiten acabar de ajustar la señal para no obtener falsos máximos y poder obtener un periodo fiable
@@ -103,7 +103,7 @@ Tiene un slide para poder variar el parámetro 'threshold_percentage' y ver como
 #### Parámetros:
 - **threshold_percentage:** Este valor puede ser ajustado según la señal.
 - **min_distance:** Mínima distancia entre picos para considerarlos como distintos
-- **prominence** Ajusta la prominencia para filtrar picos más pequeños
+- **prominence:** Ajusta la prominencia para filtrar picos más pequeños
 
 #### Notas:
 - Nos permite variar el valor del umbral para ver cómo varía el periodo
@@ -123,7 +123,7 @@ Tiene tres slides para poder variar el parámetro 'threshold_percentage', 'min_d
 #### Parámetros:
 - **threshold_percentage:** Este valor puede ser ajustado según la señal.
 - **min_distance:** Mínima distancia entre picos para considerarlos como distintos
-- **prominence** Ajusta la prominencia para filtrar picos más pequeños
+- **prominence:** Ajusta la prominencia para filtrar picos más pequeños
 
 #### Notas:
 - Nos permite variar el valor del umbral, mínima distancia y prominencia para ver cómo varía el periodo
