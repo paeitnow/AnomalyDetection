@@ -45,7 +45,7 @@ En este caso podemos visualizar además la gráfica de la derivada, y el umbral 
 
 #### Parámetros: 
 - **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
-- ***window_size:** Número de valores siguientes para calcular la media futura
+- **window_size:** Número de valores siguientes para calcular la media futura
 
 #### Ejemplo de ejecución:
 ![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_ventana_graf_deriv.png)
