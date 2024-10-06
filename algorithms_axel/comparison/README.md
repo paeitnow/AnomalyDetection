@@ -1,26 +1,59 @@
 # Comparison
 
-Esta carpeta contiene scripts dedicados a la comparación de diferentes series de datos. Los métodos de comparación pueden incluir métricas estadísticas, correlación cruzada, y otros enfoques para evaluar la similitud entre dos conjuntos de datos.
+Esta carpeta contiene scripts dedicados a la comparación de diferentes series de datos.
 
 ## Contenido de la carpeta
 
-### 1. `cross_correlation.py`
+### 1. `comparar_periodos_solapados.py`
 
-Este script calcula la correlación cruzada entre dos series temporales. La correlación cruzada mide la similitud entre dos señales, considerando posibles desplazamientos (lags) entre ellas.
-
-#### Descripción:
-- **Entrada:** Dos listas de datos numéricos (series temporales) y el número de lags a analizar.
-- **Salida:** Los valores de correlación cruzada para cada lag, indicando el nivel de similitud entre las series.
-
-### 2. `mean_squared_error.py`
-
-Este archivo implementa el cálculo del error cuadrático medio (MSE) entre dos conjuntos de datos. El MSE es una métrica que cuantifica la diferencia entre los valores predichos y los valores observados.
+Este script muestra todos los periodos de la señal solapados en la misma gráfica.
 
 #### Descripción:
-- **Entrada:** Dos listas de datos (valores predichos y valores observados).
-- **Salida:** Un valor numérico que representa el MSE, donde un valor más bajo indica mayor similitud entre las dos series.
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos todos los periodos de una señal solapados.
 
-## Aplicaciones
+#### Parámetros:
+- **estimated_period:** Estableceremos el periodo de la señal manualmente
 
-- **Análisis comparativo:** para comparar el rendimiento de modelos predictivos con datos reales.
-- **Procesamiento de señales:** para evaluar el alineamiento o desfase entre dos señales.
+#### Notas:
+- Este script solo pretender dar una idea del comporamiento de los distintos periodos de la señal
+
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/comparison/image_comparar_periodos_solapados.png)
+  
+### 2. `comparar_periodos_auto_solapados.py`
+
+Este script muestra todos los periodos de la señal solapados en la misma gráfica.
+
+#### Descripción:
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos todos los periodos de una señal solapados.
+
+#### Parámetros:
+- **threshold_percentage:** Este valor puede ser ajustado según la señal.
+- **min_distance:** Mínima distancia entre picos para considerarlos como distintos
+- **prominence:** Ajusta la prominencia para filtrar picos más pequeños
+
+#### Notas:
+- Este script solo pretender dar una idea del comporamiento de los distintos periodos de la señal
+- Utilizaremos la función 'calcular_periodo' que se encuentra dentro del script [operaciones.py](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/utils/operaciones.py)
+
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/comparison/image_comparar_periodos_auto_solapados.png)
+
+### 3. `comparar_periodos_mapa_densidad.py`
+
+Este script muestra una gráfica de densidad para ver en que puntos del periodo solapado hay una mayor densidad. 
+Pretendía dar una idea de en qué partes hay una mayor concentración de anomalías, pero el resultado es muy poco intuitivo
+
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/comparison/image_comparar_periodos_mapa_densidad.png)
+
+### 4. `comparar_periodos_media_y_desviacion.py`
+
+Este script muestra una gráfica de la media y la desviación de todos los periodos de la señal.
+
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/comparison/image_comparar_periodos_media_y_desviacion.png)
+
+
