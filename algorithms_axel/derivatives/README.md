@@ -19,18 +19,34 @@ Este script implementa el método de diferencias finitas para calcular la deriva
 ![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_consec.png)
 
 
-### 2. `central_difference.py`
+### 2. `derivada_primera_ventana.py`
 
-Este archivo contiene una implementación del método de diferencias centrales, que es una mejora sobre las diferencias finitas. El método central calcula la derivada en un punto utilizando los valores en los puntos adyacentes a ambos lados, lo que puede mejorar la precisión.
+Este script implementa el método de diferencias finitas para calcular la derivada numérica de una función en puntos discretos. La diferencia con el anterior es que no toma dos puntos para hacer la derivada, sino que toma una ventana y calcula la media de los puntos dentro de la ventana. El calculo de la derivada se hace a partir de un punto y la derivada de la media de la ventana.
 
 #### Descripción:
-- **Entrada:** Una lista de valores de la función y el espaciado entre los puntos.
-- **Salida:** Una lista de valores que representan la derivada numérica, calculada mediante diferencias centrales.
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos la señal de entrada, y las anomalías detectadas a partir del umbral de derivación y el tamaño de la ventana.
 
-## Aplicaciones
+#### Parámetros: 
+- **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
+- ***window_size:** Número de valores siguientes para calcular la media futura
 
-- **Física:** para calcular velocidades y aceleraciones a partir de posiciones medidas en diferentes tiempos.
-- **Análisis de datos científicos:** para determinar la tasa de cambio en series temporales.
-- **Ingeniería:** para evaluar la respuesta de un sistema en función del tiempo u otras variables.
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_ventana.png)
 
-Estos algoritmos son útiles en situaciones donde no se conoce la forma analítica de una función, pero se disponen de mediciones o datos discretos.
+### 3. `derivada_primera_ventana_graf_deriv.py`
+
+Este script implementa el método de diferencias finitas para calcular la derivada numérica de una función en puntos discretos. La diferencia con el anterior es que no toma dos puntos para hacer la derivada, sino que toma una ventana y calcula la media de los puntos dentro de la ventana. El calculo de la derivada se hace a partir de un punto y la derivada de la media de la ventana. 
+En este caso podemos visualizar además la gráfica de la derivada, y el umbral de la derivada.
+
+#### Descripción:
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos la señal de entrada, y las anomalías detectadas a partir del umbral de derivación y el tamaño de la ventana.
+
+#### Parámetros: 
+- **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
+- ***window_size:** Número de valores siguientes para calcular la media futura
+
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_ventana_graf_deriv.png)
+
