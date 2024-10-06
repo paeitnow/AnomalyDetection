@@ -1,17 +1,20 @@
 # Derivatives
 
-Esta carpeta contiene algoritmos que calculan derivadas numéricas a partir de datos discretos. Estos métodos son útiles en el análisis de datos cuando se desea conocer la tasa de cambio de una variable a lo largo de otra (por ejemplo, la derivada de una función de tiempo).
+Esta carpeta contiene algoritmos que detectan anomalías a partir del cálculo de la derivada.
 
 ## Contenido de la carpeta
 
-### 1. `finite_difference.py`
+### 1. `derivada_primera_consec.py`
 
 Este script implementa el método de diferencias finitas para calcular la derivada numérica de una función en puntos discretos.
 
 #### Descripción:
-- **Entrada:** Una lista de valores de la función (por ejemplo, posiciones a lo largo del tiempo) y el espaciado entre los puntos (por ejemplo, el intervalo de tiempo).
-- **Salida:** Una lista de valores que representan la derivada numérica de los datos proporcionados.
+- **Entrada:** Un archivo .csv con una columna de tiempo llamada 'timestamp' y los datos en la ventana 'value'.
+- **Salida:** Una gráfica donde mostramos la señal de entrada, y las anomalías detectadas a partir del umbral de derivación.
 
+#### Parámetros: 
+- **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
+- 
 ### 2. `central_difference.py`
 
 Este archivo contiene una implementación del método de diferencias centrales, que es una mejora sobre las diferencias finitas. El método central calcula la derivada en un punto utilizando los valores en los puntos adyacentes a ambos lados, lo que puede mejorar la precisión.
