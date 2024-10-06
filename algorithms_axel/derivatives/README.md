@@ -14,7 +14,11 @@ Este script implementa el método de diferencias finitas para calcular la deriva
 
 #### Parámetros: 
 - **derivative_threshold:** Podemos ajustar este valor para definir qué es una variación anómala
-- 
+
+#### Ejemplo de ejecución:
+(https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/derivatives/image_derivada_primera_consec.png)
+
+
 ### 2. `central_difference.py`
 
 Este archivo contiene una implementación del método de diferencias centrales, que es una mejora sobre las diferencias finitas. El método central calcula la derivada en un punto utilizando los valores en los puntos adyacentes a ambos lados, lo que puede mejorar la precisión.
