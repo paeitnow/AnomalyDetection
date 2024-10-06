@@ -16,6 +16,9 @@ Este script implementa un algoritmo de media móvil simple.
 - **time_window_size:** Tamaño de la ventana en el eje X (tiempo), debe ser un número par
 - **value_range:**  # Rango de valores permitidos en el eje Y
 
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/moving_window/image_ventana_media_movil_centrada.png)
+
 ### 2. `ventana_media_movil_centrada_automatica.py`
 
 Este script implementa un algoritmo de media móvil simple automático.
@@ -32,4 +35,6 @@ El tamaño de la ventana varía en proporción al tamaño de los datos de la se�
 #### Notas: 
 - La desviación estándar de la ventana automática se multiplica por un valor aleatorio, en realidad este valor debería obtenerse con algún algoritmo como K-means
 
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/tree/main/algorithms_axel/moving_window/image_ventana_media_movil_centrada_automatica.png)
 
