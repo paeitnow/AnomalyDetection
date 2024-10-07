@@ -4,23 +4,10 @@ Esta carpeta contiene algoritmos para optimización de funciones, útiles en la 
 
 ## Contenido de la carpeta
 
-### 1. `gradient_descent.py`
+### 1. `optimizacion_F1score.py`
 
-Este script implementa el algoritmo de descenso de gradiente, un método iterativo para minimizar funciones, comúnmente utilizado en optimización y aprendizaje automático.
+Este script obtiene los mejores valores para ciertos parámetros con tal de conseguir el mejor scoring para una determinada señal 
+Para ello establecemos un rango de valores para la optimización. El script los recorrerá todos y calculará el scoring para cada uno de ellos
 
-#### Descripción:
-- **Entrada:** Una función objetivo, su gradiente, una tasa de aprendizaje, y el número de iteraciones.
-- **Salida:** El mínimo local de la función objetivo tras ejecutar el algoritmo.
-
-### 2. `simulated_annealing.py`
-
-Este archivo implementa el método de recocido simulado (simulated annealing), un algoritmo probabilístico para encontrar la solución óptima global en problemas de optimización, incluso en funciones con múltiples mínimos locales.
-
-#### Descripción:
-- **Entrada:** Una función objetivo y los parámetros del algoritmo (temperatura inicial, tasa de enfriamiento, etc.).
-- **Salida:** El mejor valor encontrado para la función objetivo.
-
-## Aplicaciones
-
-- **Optimización de funciones:** para encontrar parámetros óptimos en problemas de ingeniería, economía y ciencias aplicadas.
-- **Entrenamiento de modelos de machine learning:** para minimizar funciones de pérdida.
+#### Ejemplo de ejecución:
+![No se puede cargar la imagen](https://github.com/paeitnow/AnomalyDetection/blob/main/algorithms_axel/optimization/image_optimizacion_F1score.png)
