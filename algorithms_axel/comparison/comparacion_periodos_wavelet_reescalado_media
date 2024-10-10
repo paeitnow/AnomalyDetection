@@ -1,0 +1,102 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import pywt
+
+# Cargar los datos del archivo CSV
+data = pd.read_csv('C:/Users/gonza/OneDrive/Escritorio/Pae/g.csv')
+
+# Extraer los valores y etiquetas de anomalías
+values = data['value'].values
+labels = data['label'].values
+
+# Parámetros de la señal
+period_length = 1438  # Muestras por periodo
+num_periods = len(values) // period_length  # Número de periodos
+
+# Parámetro de niveles totales de la transformada deseados
+total_levels = 3  # Cambia este valor según el número total de niveles que desees
+
+# Parámetro de nivel de la reconstrucción deseado
+desired_level = 1  # Cambia este valor según el nivel que quieras reconstruir (más simple)
+
+# Función para reconstruir la señal desde un nivel específico de la wavelet
+def reconstruct_signal(coeffs, level):
+    coeffs_reconstructed = [np.zeros_like(c) for c in coeffs]
+    coeffs_reconstructed[:level+1] = coeffs[:level+1]  # Mantener los primeros niveles
+    return pywt.waverec(coeffs_reconstructed, wavelet='db1')
+
+# Función para reescalar el periodo actual a la media del periodo de referencia
+def rescale_to_reference(reference, current):
+    reference_mean = np.mean(reference)
+    current_mean = np.mean(current)
+    # Calcular el factor de escalado
+    scaling_factor = reference_mean / current_mean if current_mean != 0 else 1
+    # Escalar el periodo actual
+    adjusted_current = current * scaling_factor
+    return adjusted_current
+
+# Transformada y reconstrucción del periodo de referencia
+reference_period = values[0:period_length]
+coeffs_ref = pywt.wavedec(reference_period, wavelet='db1', level=total_levels)
+reference_reconstructed = reconstruct_signal(coeffs_ref, desired_level)
+
+# Comparar la Transformada Wavelet de cada periodo con el de referencia
+for i in range(1, num_periods):
+    period_start = i * period_length
+    period_end = (i + 1) * period_length
+    
+    # Asegurarse de que los índices no excedan el tamaño de los valores
+    if period_end > len(values):
+        break
+    
+    current_period = values[period_start:period_end]
+    
+    # Transformada Wavelet del periodo actual
+    coeffs = pywt.wavedec(current_period, wavelet='db1', level=total_levels)
+    
+    # Reconstruir el periodo actual desde el nivel deseado
+    current_reconstructed = reconstruct_signal(coeffs, desired_level)[:period_length]
+    
+    # Reescalar el periodo actual para que tenga la misma media que el periodo de referencia
+    current_rescaled = rescale_to_reference(reference_reconstructed[:period_length], current_reconstructed)
+    
+    # Calcular la resta entre el periodo de referencia reconstruido y el periodo actual reconstruido
+    difference = reference_reconstructed[:period_length] - current_reconstructed
+    # Calcular la resta entre el periodo de referencia reconstruido y el periodo reescalado
+    difference_rescaled = reference_reconstructed[:period_length] - current_rescaled
+
+    # Crear figura para mostrar las comparaciones y restas
+    fig, axs = plt.subplots(4, 1, figsize=(10, 8))
+
+    time_axis = np.arange(period_length)  # Eje de tiempo común para ambos períodos
+
+    # Graficar el periodo de referencia reconstruido
+    axs[0].plot(time_axis, reference_reconstructed[:period_length], label='Periodo de Referencia (Reconstruido)', color='blue')
+    axs[0].plot(time_axis, current_reconstructed, label=f'Periodo {i+1} (Reconstruido)', color='red')
+    axs[0].set_title(f'Comparación: Periodo de Referencia vs Periodo {i+1} (Reconstruidos)')
+    axs[0].legend()
+
+    # Graficar la resta entre el periodo de referencia y el periodo actual reconstruido
+    axs[1].plot(time_axis, difference, label=f'Resta (Referencia - Periodo {i+1})', color='green')
+    axs[1].set_title(f'Resta entre Referencia y Periodo {i+1} (Reconstruido)')
+    axs[1].legend()
+
+    # Graficar el periodo de referencia reconstruido y el periodo actual reescalado
+    axs[2].plot(time_axis, reference_reconstructed[:period_length], label='Periodo de Referencia (Reconstruido)', color='blue')
+    axs[2].plot(time_axis, current_rescaled, label=f'Periodo {i+1} (Reescalado)', color='orange')
+    axs[2].set_title(f'Comparación: Periodo de Referencia vs Periodo {i+1} (Reescalado)')
+    axs[2].legend()
+
+    # Graficar la resta entre el periodo de referencia y el periodo actual reescalado
+    axs[3].plot(time_axis, difference_rescaled, label=f'Resta (Referencia - Periodo {i+1} Reescalado)', color='purple')
+    axs[3].plot(time_axis, difference, label=f'Resta (Referencia - Periodo {i+1})', color='green')
+    axs[3].set_title(f'Resta entre Referencia y Periodo {i+1} (Reescalado)')
+    axs[3].legend()
+
+    axs[1].set_ylim(-0.1, 0.1)  # Cambia estos valores según necesites
+    axs[3].set_ylim(-0.1, 0.1)  # Cambia estos valores según necesites
+
+    # Ajustar el layout
+    plt.tight_layout()
+    plt.show()
