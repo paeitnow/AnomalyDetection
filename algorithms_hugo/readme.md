@@ -111,10 +111,6 @@ The code provided focuses on detecting anomalies in a dataset of transactions us
   - **ROC Curve**: Plots the true positive rate versus the false positive rate.
   - **Precision-Recall Curve**: Shows precision as a function of recall.
 
-### 11. Visualization with Plotly
-- **Interactive Visualization**: Uses Plotly to plot the normalized transaction values over time, showing real and predicted anomalies.
-- **Zoomable Features**: Allows the user to zoom in on specific time ranges, enhancing the analysis of detected anomalies.
-
 ### Key Techniques and Concepts
 
 1. **LSTM (Long Short-Term Memory) Networks**:
