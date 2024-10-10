@@ -1,0 +1,248 @@
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.offline import init_notebook_mode, iplot
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+)
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Activate Plotly offline mode for interactive plotting in Jupyter notebooks
+init_notebook_mode(connected=True)
+
+# Load the dataset from a CSV file
+# Replace the file path with the correct path to your CSV file
+file_path = r'C:\Tout\Barcelone\annoDet\g.csv'
+data = pd.read_csv(file_path)
+
+# Remove any rows where the 'label' column is missing (NaN)
+# Make a copy of the cleaned data to avoid warnings about modifying the original DataFrame
+data_cleaned = data.dropna(subset=['label']).copy()
+
+# Convert the 'timestamp' column from Unix time (seconds since 1970) to datetime format
+data_cleaned['timestamp'] = pd.to_datetime(data_cleaned['timestamp'], unit='s')
+
+# Extract useful time-based features from the 'timestamp'
+data_cleaned['hour'] = data_cleaned['timestamp'].dt.hour           # Hour of the day (0-23)
+data_cleaned['day_of_week'] = data_cleaned['timestamp'].dt.dayofweek  # Day of the week (0=Monday)
+data_cleaned['day_of_month'] = data_cleaned['timestamp'].dt.day    # Day of the month (1-31)
+data_cleaned['month'] = data_cleaned['timestamp'].dt.month         # Month of the year (1-12)
+
+# Normalize the 'value' column to have a mean of 0 and standard deviation of 1
+# This helps to standardize the data and improve model performance
+data_cleaned['value_normalized'] = (
+    data_cleaned['value'] - data_cleaned['value'].mean()
+) / data_cleaned['value'].std()
+
+# Calculate rolling (moving) statistics to capture trends over time
+# These features can help the model detect anomalies based on recent behavior
+
+# Rolling mean and standard deviation over the last 5 transactions
+data_cleaned['rolling_mean_5'] = data_cleaned['value'].rolling(window=5).mean()
+data_cleaned['rolling_std_5'] = data_cleaned['value'].rolling(window=5).std()
+
+# Rolling mean and standard deviation over the last 10 transactions
+data_cleaned['rolling_mean_10'] = data_cleaned['value'].rolling(window=10).mean()
+data_cleaned['rolling_std_10'] = data_cleaned['value'].rolling(window=10).std()
+
+# Fill any missing values (NaN) resulting from the rolling calculations
+# These occur because the first few rows don't have enough previous data points
+data_cleaned.fillna(data_cleaned.mean(), inplace=True)
+
+# Define the list of feature column names that will be used for machine learning
+features = [
+    'value_normalized',  # Normalized transaction amount
+    'hour',              # Hour of the transaction
+    'day_of_week',       # Day of the week of the transaction
+    'day_of_month',      # Day of the month of the transaction
+    'month',             # Month of the transaction
+    'rolling_mean_5',    # Rolling mean over the last 5 transactions
+    'rolling_std_5',     # Rolling standard deviation over the last 5 transactions
+    'rolling_mean_10',   # Rolling mean over the last 10 transactions
+    'rolling_std_10',    # Rolling standard deviation over the last 10 transactions
+]
+
+# Separate the DataFrame into input features (X) and the target variable (y)
+X = data_cleaned[features]             # Features used for prediction
+y = data_cleaned['label'].astype(int)  # Target variable: 0 (normal), 1 (anomaly)
+
+# Split the dataset into training and testing sets
+# 80% of the data is used for training, and 20% is used for testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,                 # Input features and target variable
+    test_size=0.2,        # Proportion of the dataset to include in the test split
+    random_state=42       # Seed for reproducibility
+)
+
+# Standardize the features by removing the mean and scaling to unit variance
+# This is important for algorithms that are sensitive to the scale of the data
+scaler = StandardScaler()                 # Create a StandardScaler object
+X_train_scaled = scaler.fit_transform(X_train)  # Fit to the training data and transform it
+X_test_scaled = scaler.transform(X_test)        # Transform the test data using the same parameters
+
+# Define a function to expand detected anomalies to include neighboring data points
+def expand_anomalies(anomaly_indices, window_size, total_length):
+    """
+    Expands the list of anomaly indices to include neighboring data points within a specified window size.
+
+    Parameters:
+    - anomaly_indices: List of indices where anomalies were detected
+    - window_size: Number of data points to include before and after each anomaly
+    - total_length: Total number of data points in the dataset
+
+    Returns:
+    - List of expanded anomaly indices
+    """
+    expanded_indices = set()  # Use a set to avoid duplicate indices
+    for idx in anomaly_indices:
+        # Calculate the start and end indices, ensuring they stay within the dataset bounds
+        start = max(0, idx - window_size)
+        end = min(total_length, idx + window_size + 1)  # +1 because the range is exclusive at the end
+        # Add the indices in the window to the set
+        expanded_indices.update(range(start, end))
+    return list(expanded_indices)  # Convert the set back to a list
+
+# Define a function to train the model and evaluate its performance
+def train_evaluate_model(
+    X_train_scaled, y_train,     # Scaled training data and labels
+    X_test_scaled, y_test,       # Scaled test data and labels
+    data_cleaned,                # The full cleaned dataset
+    threshold=0.5,               # Probability threshold for classifying an anomaly
+    window_size=0,               # Window size for expanding anomalies
+    n_estimators=100,            # Number of trees in the random forest
+    max_depth=None,              # Maximum depth of the trees
+    class_weight='balanced'      # How to handle class imbalance
+):
+    """
+    Trains a Random Forest classifier and evaluates its performance.
+
+    Parameters:
+    - X_train_scaled, y_train: Scaled training features and labels
+    - X_test_scaled, y_test: Scaled test features and labels
+    - data_cleaned: The full dataset including both training and test data
+    - threshold: Probability threshold for classifying a data point as an anomaly
+    - window_size: Number of neighboring data points to include as anomalies
+    - n_estimators: Number of trees in the random forest
+    - max_depth: Maximum depth of each tree
+    - class_weight: Strategy for handling class imbalance
+
+    Returns:
+    - rf_model: The trained Random Forest model
+    - data_cleaned: The dataset with predictions added
+    - precision: Precision score of the model
+    - recall: Recall score of the model
+    - f1: F1 score of the model
+    """
+    # Create a Random Forest classifier with specified parameters
+    # Random Forest is an ensemble method that combines multiple decision trees
+    rf_model = RandomForestClassifier(
+        n_estimators=n_estimators,   # Number of trees in the forest
+        max_depth=max_depth,         # Maximum depth of the trees (None means nodes are expanded until all leaves are pure)
+        random_state=42,             # Seed for reproducibility
+        class_weight=class_weight    # Adjust weights to handle class imbalance
+    )
+
+    # Train the Random Forest model on the training data
+    rf_model.fit(X_train_scaled, y_train)
+
+    # Predict the probabilities of the test data belonging to the anomaly class (class 1)
+    y_pred_proba = rf_model.predict_proba(X_test_scaled)[:, 1]  # Get probabilities for class 1
+
+    # Convert the probabilities to binary predictions based on the threshold
+    # If the probability is greater than or equal to the threshold, classify as anomaly (1)
+    y_pred = (y_pred_proba >= threshold).astype(int)
+
+    # Add the predictions back to the main DataFrame for analysis
+    data_cleaned['predicted_anomaly'] = np.nan  # Initialize the column with NaN
+    data_cleaned.loc[X_test.index, 'predicted_anomaly'] = y_pred  # Assign predictions to the test indices
+
+    # If window_size is greater than 0, expand the detected anomalies to include neighboring data points
+    if window_size > 0:
+        # Get the indices of the detected anomalies in the test set
+        anomalies_indices = data_cleaned.loc[X_test.index][data_cleaned['predicted_anomaly'] == 1].index
+        # Expand the anomalies to include neighbors within the specified window size
+        expanded_indices = expand_anomalies(anomalies_indices, window_size, len(data_cleaned))
+        # Mark the expanded indices as anomalies in the DataFrame
+        data_cleaned.loc[expanded_indices, 'predicted_anomaly'] = 1
+        # Update the predictions after expansion
+        y_pred = data_cleaned.loc[X_test.index, 'predicted_anomaly'].fillna(0).astype(int)
+
+    # Calculate performance metrics to evaluate the model
+    precision = precision_score(y_test, y_pred)  # Precision: True Positives / (True Positives + False Positives)
+    recall = recall_score(y_test, y_pred)        # Recall: True Positives / (True Positives + False Negatives)
+    f1 = f1_score(y_test, y_pred)                # F1 Score: Harmonic mean of precision and recall
+    conf_matrix = confusion_matrix(y_test, y_pred)  # Confusion matrix showing TP, FP, TN, FN
+
+    # Print the classification report and confusion matrix
+    print(f"Threshold: {threshold}, Window Size: {window_size}")
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred, target_names=['Normal', 'Anomaly']))
+    print("Confusion Matrix:")
+    print(conf_matrix)
+
+    # Return the trained model, updated DataFrame, and performance metrics
+    return rf_model, data_cleaned, precision, recall, f1
+
+# Set the parameters for training and evaluating the model
+threshold = 0.3   # Probability threshold for classifying anomalies (lower to detect more anomalies)
+window_size = 5   # Number of neighboring data points to include around detected anomalies
+
+# Train the model and evaluate its performance using the function defined above
+rf_model, data_cleaned, precision, recall, f1 = train_evaluate_model(
+    X_train_scaled, y_train,     # Scaled training data and labels
+    X_test_scaled, y_test,       # Scaled test data and labels
+    data_cleaned,                # The full dataset with features and labels
+    threshold=threshold,         # Set the probability threshold for classifying anomalies
+    window_size=window_size      # Set the window size for expanding anomalies
+)
+
+# Print additional performance metrics
+print(f"Precision: {precision}")  # How many of the detected anomalies were actually anomalies
+print(f"Recall: {recall}")        # How many of the actual anomalies were detected
+print(f"F1-score: {f1}")          # Balance between precision and recall
+
+# Create an interactive visualization using Plotly to show the results
+fig = go.Figure()
+
+# Plot the normalized transaction values over time as a line
+fig.add_trace(go.Scatter(
+    x=data_cleaned['timestamp'],                  # X-axis: timestamps
+    y=data_cleaned['value_normalized'],           # Y-axis: normalized transaction values
+    mode='lines',                                 # Plot as a line
+    name='Normalized Value',                      # Label in the legend
+    line=dict(color='blue', width=2)              # Line color and width
+))
+
+# Add markers for the actual anomalies (ground truth)
+fig.add_trace(go.Scatter(
+    x=data_cleaned['timestamp'][data_cleaned['label'] == 1],      # Timestamps of actual anomalies
+    y=data_cleaned['value_normalized'][data_cleaned['label'] == 1],  # Values of actual anomalies
+    mode='markers',                                               # Plot as markers
+    name='Actual Anomalies',                                      # Label in the legend
+    marker=dict(color='red', size=10, symbol='x')                 # Marker style
+))
+
+# Add markers for the anomalies predicted by the model
+fig.add_trace(go.Scatter(
+    x=data_cleaned['timestamp'][data_cleaned['predicted_anomaly'] == 1],  # Timestamps of predicted anomalies
+    y=data_cleaned['value_normalized'][data_cleaned['predicted_anomaly'] == 1],  # Values of predicted anomalies
+    mode='markers',                                                        # Plot as markers
+    name='Predicted Anomalies',                                            # Label in the legend
+    marker=dict(color='green', size=8, symbol='circle')                    # Marker style
+))
+
+# Update the layout of the plot with a title and axis labels
+fig.update_layout(
+    title="Anomaly Detection - Actual vs Predicted",  # Title of the plot
+    xaxis_title="Time",                               # Label for the x-axis
+    yaxis_title="Normalized Value"                    # Label for the y-axis
+)
+
+# Display the interactive plot in the notebook
+iplot(fig)
