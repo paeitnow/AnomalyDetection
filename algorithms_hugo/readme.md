@@ -4,63 +4,7 @@
 --> The recall is abnormally high, because it also takes into account normal points, not just anomalies, so the anomalies are diluted in the large number of points, which is corrected in subsequent versions.
 
 
-The provided code uses various machine learning algorithms to detect anomalies in a dataset of banking transactions. Here is a detailed explanation of the steps and concepts used:
 
-### 1. Data Loading and Preparation
-
-- **Loading the data**: The CSV file containing the transactions is loaded into a Pandas DataFrame. This file includes columns such as `timestamp`, `value` (transaction amount), and `label` (indicating whether the transaction is an anomaly or not).
-- **Data cleaning**: Rows without a label (anomaly or not) are removed.
-- **Timestamp conversion**: The `timestamp` column is converted to `datetime` format to enable the extraction of time-based features.
-
-### 2. Feature Engineering
-
-- **Extracting temporal features**: Additional information like the hour (`hour`), day of the week (`day_of_week`), day of the month (`day_of_month`), and month (`month`) are extracted from the `timestamp`.
-- **Normalization of values**: The transaction amounts are normalized to have a mean of zero and a standard deviation of one. This standardizes the data for the machine learning algorithms, making them more robust to differences in scale.
-- **Rolling statistics**: Moving averages (`rolling_mean`) and moving standard deviations (`rolling_std`) are calculated over windows of 5 and 10 observations to capture local trends in the data.
-
-### 3. Preparing the Training Data
-
-- **Feature selection**: The created features are combined to form the input matrix `X`.
-- **Data splitting**: The data is split into training and test sets, with 80% used for training and 20% for testing.
-- **Standardization**: The data is standardized to ensure all features contribute equally to the models.
-
-### 4. Training the Machine Learning Models
-
-Three different models are used:
-
-1. **Random Forest Classifier**:
-   - An ensemble algorithm that builds multiple decision trees and combines their results to obtain a final prediction. It is robust to imbalanced data.
-   - The probability of each observation being an anomaly is calculated (`rf_proba`).
-
-2. **XGBoost Classifier**:
-   - A boosting algorithm that builds decision trees sequentially to correct the errors of the previous trees. It is efficient for large datasets.
-   - The prediction probabilities (`xgb_proba`) are obtained.
-
-3. **Isolation Forest**:
-   - An unsupervised anomaly detection algorithm. It works by isolating observations by randomly partitioning the data.
-   - Anomaly scores are obtained, and a threshold is set to classify observations as anomalies or not.
-
-### 5. Combining Predictions and Adjusting Thresholds
-
-- The predictions from the three models are combined by averaging the probabilities (`average_proba`). This creates an ensemble model that leverages the strengths of each algorithm.
-- An adjusted threshold of 0.4 is used to determine if an observation is considered an anomaly.
-
-### 6. Filtering Predictions to Reduce Noise
-
-- **Smoothing filter**: The anomaly predictions are smoothed using a moving average filter (`uniform_filter1d`). This reduces false positives by treating anomalies as persistent events rather than simple point fluctuations.
-
-### 7. Performance Evaluation
-
-- **Classification report**: Provides metrics such as precision, recall, and F1-score to evaluate the detection performance.
-- **Confusion matrix**: Allows analysis of the correct and incorrect predictions of anomalies and normal observations.
-- **ROC-AUC and PR-AUC scores**: Measure the overall performance of the model in terms of anomaly detection.
-
-### 8. Interactive Visualization
-
-The code uses Plotly to create an interactive plot to visualize the normalized values of the transactions over time, comparing actual anomalies (red markers) and predicted anomalies (green markers). This helps to visually assess the model's effectiveness in detecting anomalies in the dataset.
-
-
- ![image](https://github.com/user-attachments/assets/abb92fbf-91d3-4b29-9b8b-e5e9223170d7)
 
 
  ![newplot](https://github.com/user-attachments/assets/b9a87cd2-2ed9-4dfc-927f-e476b45747ed)
@@ -210,4 +154,149 @@ The code provided focuses on detecting anomalies in a dataset of transactions us
 ![image](https://github.com/user-attachments/assets/053dab15-5de6-41e6-9d2c-c20561b12b20)
 
 ![image](https://github.com/user-attachments/assets/ce757564-db57-409b-8526-8707609feb78)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# RandomForestClassifierFINAL
+
+
+## Code Overview
+
+
+
+### Data Preparation
+
+1. **Importing Libraries**: 
+   - Libraries like `pandas` and `numpy` are used for data manipulation, while `plotly` is chosen for visualization because it allows for interactive plots, which can be helpful in exploring the data and understanding the results.
+   - `scikit-learn` is a well-established library for machine learning in Python, offering tools for training models and evaluating their performance.
+
+2. **Activating Plotly for Offline Mode**:
+   - Plotly's offline mode is used because it enables interactive plotting in environments like Jupyter notebooks without needing an internet connection. This makes it suitable for exploratory data analysis.
+
+3. **Loading the Dataset**:
+   - The dataset is loaded from a CSV file because this format is widely used for storing tabular data, making it easy to work with in data science workflows.
+
+4. **Cleaning Data**:
+   ```python
+   data_cleaned = data.dropna(subset=['label']).copy()
+   ```
+   - **Why?** Removing rows with missing 'label' values ensures that we only train the model on data where we know whether the transaction is normal or anomalous. This is important because supervised learning algorithms, like Random Forest, require labeled data for training.
+
+5. **Feature Extraction**:
+   ```python
+   data_cleaned['timestamp'] = pd.to_datetime(data_cleaned['timestamp'], unit='s')
+   data_cleaned['hour'] = data_cleaned['timestamp'].dt.hour
+   data_cleaned['day_of_week'] = data_cleaned['timestamp'].dt.dayofweek
+   data_cleaned['day_of_month'] = data_cleaned['timestamp'].dt.day
+   data_cleaned['month'] = data_cleaned['timestamp'].dt.month
+   ```
+   - **Why?** Time-based features can be very useful in anomaly detection because patterns in transactions often correlate with time. For example, certain activities may be more likely to happen at specific hours or on particular days (e.g., higher transaction volumes on weekdays). Including these features allows the model to detect anomalies based on when they occur.
+
+6. **Normalization**:
+   ```python
+   data_cleaned['value_normalized'] = (data_cleaned['value'] - data_cleaned['value'].mean()) / data_cleaned['value'].std()
+   ```
+   - **Why?** Normalizing the 'value' column helps to standardize the range of the data. This is important for machine learning models because features with larger ranges could dominate the learning process. By bringing all features to a similar scale, the model can better learn patterns across different types of features.
+
+7. **Calculating Rolling Statistics**:
+   ```python
+   data_cleaned['rolling_mean_5'] = data_cleaned['value'].rolling(window=5).mean()
+   data_cleaned['rolling_std_5'] = data_cleaned['value'].rolling(window=5).std()
+   data_cleaned['rolling_mean_10'] = data_cleaned['value'].rolling(window=10).mean()
+   data_cleaned['rolling_std_10'] = data_cleaned['value'].rolling(window=10).std()
+   ```
+   - **Why?** Rolling statistics are calculated over different window sizes (5 and 10) to capture short-term trends in the data. These features help the model identify unusual behavior based on recent transaction history. If a transaction significantly deviates from recent trends, it could be a sign of an anomaly.
+
+8. **Handling Missing Values**:
+   ```python
+   data_cleaned.fillna(data_cleaned.mean(), inplace=True)
+   ```
+   - **Why?** Rolling calculations produce NaN values at the start of the dataset, where there isn't enough data to calculate the statistics. Filling these missing values with the column mean helps to avoid problems during model training and ensures that no data is discarded.
+
+### Machine Learning
+
+9. **Defining Features and Target**:
+   ```python
+   features = ['value_normalized', 'hour', 'day_of_week', 'day_of_month', 'month', 
+               'rolling_mean_5', 'rolling_std_5', 'rolling_mean_10', 'rolling_std_10']
+   X = data_cleaned[features]
+   y = data_cleaned['label'].astype(int)
+   ```
+   - **Why?** The chosen features include time-based, statistical, and normalized transaction data. This combination helps the model understand both the magnitude of the transactions and their temporal patterns. The target variable `y` is the 'label' indicating whether a transaction is normal or an anomaly.
+
+10. **Splitting the Data**:
+    ```python
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    ```
+    - **Why?** Splitting the data into training (80%) and testing (20%) sets ensures that we can evaluate the model's performance on unseen data, which is crucial for assessing its generalization ability.
+
+11. **Feature Standardization**:
+    ```python
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    ```
+    - **Why?** Standardizing the features helps the model perform better by ensuring all features contribute equally to the learning process. It prevents features with large values from dominating those with smaller values.
+
+### Functions
+
+12. **expand_anomalies Function**:
+    ```python
+    def expand_anomalies(anomaly_indices, window_size, total_length):
+        ...
+    ```
+    - **Why?** This function expands the range of detected anomalies to include neighboring data points. This is based on the idea that anomalies often occur in clusters or bursts, where surrounding transactions may also be unusual. By expanding the detected anomalies, we increase the chances of capturing all related suspicious activities.
+
+13. **train_evaluate_model Function**:
+    ```python
+    def train_evaluate_model(X_train_scaled, y_train, X_test_scaled, y_test, data_cleaned, threshold=0.5, window_size=0,
+                             n_estimators=100, max_depth=None, class_weight='balanced'):
+        ...
+    ```
+    - **Why use RandomForestClassifier?** A Random Forest is chosen because it is an ensemble model that combines multiple decision trees to improve prediction accuracy. It handles both numerical and categorical data well and is less prone to overfitting compared to individual decision trees.
+    - **Why use class_weight='balanced'?** Class weighting addresses the imbalance between normal and anomalous transactions by giving more importance to the minority class (anomalies). This helps improve the model's ability to detect rare events.
+    - **Why allow adjusting the threshold?** Adjusting the classification threshold enables fine-tuning of the model's sensitivity. Lowering the threshold can help catch more anomalies, but may also increase false positives. The choice of threshold allows for finding a balance between precision and recall.
+    - **Why calculate precision, recall, and F1-score?** These metrics provide insight into the model's performance:
+      - **Precision** measures the proportion of detected anomalies that are true anomalies.
+      - **Recall** measures the proportion of actual anomalies that were detected.
+      - **F1-score** balances precision and recall, giving a single metric for evaluating the model.
+
+### Model Training and Evaluation
+
+14. **Parameter Settings**:
+    - Setting `threshold = 0.3` and `window_size = 5` allows for more sensitive anomaly detection and captures nearby suspicious transactions. These values can be tuned to improve the model’s performance.
+
+15. **Train and Evaluate the Model**:
+    ```python
+    rf_model, data_cleaned, precision, recall, f1 = train_evaluate_model(...)
+    ```
+    - **Why train and evaluate together?** This function encapsulates the entire process, ensuring that we get the model, predictions, and performance metrics in a single call, making the code cleaner and easier to manage.
+
+
+
+
+
+
+
+
 
