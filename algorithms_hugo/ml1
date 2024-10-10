@@ -1,0 +1,171 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, average_precision_score, precision_recall_curve, auc
+from sklearn.ensemble import RandomForestClassifier, IsolationForest
+from xgboost import XGBClassifier
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.regularizers import L1L2
+
+# Charger le jeu de données
+file_path = r'g.csv'
+data = pd.read_csv(file_path)
+
+# Nettoyer les données
+data_cleaned = data.dropna(subset=['label']).copy()
+
+# Convertir le timestamp en datetime
+data_cleaned['timestamp'] = pd.to_datetime(data_cleaned['timestamp'], unit='s')
+
+# Feature Engineering
+data_cleaned['hour'] = data_cleaned['timestamp'].dt.hour
+data_cleaned['day_of_week'] = data_cleaned['timestamp'].dt.dayofweek
+data_cleaned['day_of_month'] = data_cleaned['timestamp'].dt.day
+data_cleaned['month'] = data_cleaned['timestamp'].dt.month
+
+# Normaliser la colonne 'value'
+data_cleaned['value_normalized'] = (data_cleaned['value'] - data_cleaned['value'].mean()) / data_cleaned['value'].std()
+
+# Ajouter des statistiques glissantes
+data_cleaned['rolling_mean_5'] = data_cleaned['value'].rolling(window=5).mean()
+data_cleaned['rolling_std_5'] = data_cleaned['value'].rolling(window=5).std()
+data_cleaned['rolling_mean_10'] = data_cleaned['value'].rolling(window=10).mean()
+data_cleaned['rolling_std_10'] = data_cleaned['value'].rolling(window=10).std()
+data_cleaned['value_diff'] = data_cleaned['value'].diff().fillna(0)
+data_cleaned['rolling_diff'] = data_cleaned['value_diff'].rolling(window=5).mean()
+data_cleaned.fillna(data_cleaned.mean(), inplace=True)
+
+# Fonctionnalités sélectionnées
+features = ['value_normalized', 'hour', 'day_of_week', 'day_of_month', 'month', 
+            'rolling_mean_5', 'rolling_std_5', 'rolling_mean_10', 'rolling_std_10', 
+            'value_diff', 'rolling_diff']
+X = data_cleaned[features]
+y = data_cleaned['label'].astype(int)
+
+# Séparer les données en ensembles d'entraînement et de test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardiser les données
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Modèle Autoencodeur amélioré
+autoencoder = Sequential([
+    Dense(128, activation='relu', input_shape=(X_train_scaled.shape[1],), kernel_regularizer=L1L2(l1=0.01, l2=0.01)),
+    Dropout(0.3),
+    Dense(64, activation='relu', kernel_regularizer=L1L2(l1=0.01, l2=0.01)),
+    Dropout(0.3),
+    Dense(32, activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(128, activation='relu'),
+    Dense(X_train_scaled.shape[1], activation='linear')
+])
+
+autoencoder.compile(optimizer='adam', loss='mse')
+
+# Entraînement de l'autoencodeur avec un arrêt précoce
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+history = autoencoder.fit(X_train_scaled, X_train_scaled, 
+                          epochs=200, 
+                          batch_size=64, 
+                          validation_split=0.1, 
+                          callbacks=[early_stopping], 
+                          verbose=1)
+
+# Erreurs de reconstruction sur l'ensemble de test
+reconstructed_data = autoencoder.predict(X_test_scaled)
+mse = np.mean(np.power(X_test_scaled - reconstructed_data, 2), axis=1)
+
+# Random Forest Classifier
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+rf_model.fit(X_train, y_train)
+rf_prob = rf_model.predict_proba(X_test)[:, 1]
+
+# XGBoost Classifier
+ratio = (y_train == 0).sum() / (y_train == 1).sum()
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', scale_pos_weight=ratio)
+xgb_model.fit(X_train, y_train)
+xgb_prob = xgb_model.predict_proba(X_test)[:, 1]
+
+# Isolation Forest
+contamination_rate = y_train.value_counts()[1] / y_train.shape[0]
+iso_forest = IsolationForest(n_estimators=100, contamination=contamination_rate, random_state=42)
+iso_forest.fit(X_train)
+iso_scores = iso_forest.decision_function(X_test)
+iso_scores_normalized = (iso_scores - iso_scores.min()) / (iso_scores.max() - iso_scores.min())
+
+# Combiner les scores des modèles
+combined_scores = (rf_prob + xgb_prob + (1 - iso_scores_normalized) + mse) / 4
+
+# Ajuster le seuil pour les prédictions finales
+threshold = np.percentile(combined_scores, 90)
+final_pred = (combined_scores > threshold).astype(int)
+
+# Fonction pour étendre les anomalies détectées
+def expand_anomalies(predictions, window_size):
+    expanded_pred = predictions.copy()
+    for idx in np.where(predictions == 1)[0]:
+        start = max(0, idx - window_size)
+        end = min(len(predictions), idx + window_size + 1)
+        expanded_pred[start:end] = 1
+    return expanded_pred
+
+# Expansion des anomalies
+window_size = 3
+expanded_pred = expand_anomalies(final_pred, window_size)
+
+# Mise à jour des prédictions dans le DataFrame
+data_cleaned['predicted_anomaly'] = np.nan
+data_cleaned.loc[X_test.index, 'predicted_anomaly'] = expanded_pred
+
+# Évaluation de la performance
+performance_report = classification_report(y_test, expanded_pred, target_names=['Normal', 'Anomaly'])
+conf_matrix = confusion_matrix(y_test, expanded_pred)
+roc_auc = roc_auc_score(y_test, combined_scores)
+precision, recall, _ = precision_recall_curve(y_test, combined_scores)
+pr_auc = auc(recall, precision)
+
+print("Performance Report:")
+print(performance_report)
+print("Confusion Matrix:")
+print(conf_matrix)
+print(f"ROC-AUC Score: {roc_auc:.2f}")
+print(f"PR-AUC Score: {pr_auc:.2f}")
+
+# Visualisation avec Matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+plt.figure(figsize=(15, 7))
+
+# Tracer les valeurs normales
+plt.plot(data_cleaned['timestamp'], data_cleaned['value_normalized'], label='Valeur normalisée', color='blue')
+
+# Ajouter les anomalies réelles
+plt.scatter(data_cleaned['timestamp'][data_cleaned['label'] == 1],
+            data_cleaned['value_normalized'][data_cleaned['label'] == 1],
+            color='red', label='Anomalies Réelles', marker='x')
+
+# Ajouter les anomalies prédites
+plt.scatter(data_cleaned['timestamp'][data_cleaned['predicted_anomaly'] == 1],
+            data_cleaned['value_normalized'][data_cleaned['predicted_anomaly'] == 1],
+            facecolors='none', edgecolors='green', label='Anomalies Prédites', marker='o')
+
+# Titre et labels des axes
+plt.title("Détection d'Anomalies - Réelles vs Prédites (Ensemble de Modèles)")
+plt.xlabel('Temps')
+plt.ylabel('Valeur Normalisée')
+
+# Formater les dates sur l'axe x
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+plt.xticks(rotation=45)
+
+plt.legend()
+plt.tight_layout()
+plt.show()
