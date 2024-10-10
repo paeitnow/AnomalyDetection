@@ -180,6 +180,16 @@ The code provided focuses on detecting anomalies in a dataset of transactions us
 # RandomForestClassifierFINAL
 
 
+![image](https://github.com/user-attachments/assets/ec0fed3f-ed68-4f5f-be9f-131b50443c94)
+
+
+![image](https://github.com/user-attachments/assets/c8234c91-e42c-4492-a6c8-40af5f66b301)
+
+
+![image](https://github.com/user-attachments/assets/b4c15c21-d4ff-4df8-9b89-11a8d24d37f1)
+
+
+
 ## Code Overview
 
 
