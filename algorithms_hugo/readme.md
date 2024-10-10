@@ -80,3 +80,18 @@ The code uses Plotly to create an interactive plot to visualize the normalized v
 
 ![image](https://github.com/user-attachments/assets/efce3dc2-3a0f-4f49-8643-4e6a55f2caee)
 
+
+
+
+# ml2
+
+![image](https://github.com/user-attachments/assets/9f7aef27-6cb8-4d34-bbbb-ca574368bac1)
+
+
+![image](https://github.com/user-attachments/assets/5274999a-342b-427c-9169-89a2c7d03475)
+
+
+![image](https://github.com/user-attachments/assets/3ea5556e-7487-48c2-a26a-ae7bf7fd40c9)
+
+![image](https://github.com/user-attachments/assets/5e836b7d-4edc-405a-8cd9-684bf25bec7b)
+
