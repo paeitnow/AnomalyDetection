@@ -189,6 +189,8 @@ The code provided focuses on detecting anomalies in a dataset of transactions us
 ![image](https://github.com/user-attachments/assets/b4c15c21-d4ff-4df8-9b89-11a8d24d37f1)
 
 
+![image](https://github.com/user-attachments/assets/441d5950-59e0-4b29-a369-8fafd2c2c965)
+
 
 ## Code Overview
 
