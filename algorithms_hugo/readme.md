@@ -57,8 +57,7 @@
 
 
 
-
-The code provided focuses on detecting anomalies in a dataset of transactions using machine learning techniques, including deep learning. Here's an explanation of the key methods, techniques, and steps used in the code:
+[Average time to run the code: 1 hour]
 
 ### 1. Installing and Importing Libraries
 - **Libraries Installation**: The code uses various libraries like `xgboost`, `imbalanced-learn`, `plotly`, `optuna`, and `tensorflow`. Each has a specific purpose:
