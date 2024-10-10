@@ -73,3 +73,10 @@ The code uses Plotly to create an interactive plot to visualize the normalized v
 ![image](https://github.com/user-attachments/assets/10132731-c2df-4cf6-97eb-75320d0116c2)
 
 ![newplot (1)](https://github.com/user-attachments/assets/7fc0bf06-37ad-440a-a8a7-f849e36a53dd)
+
+
+# ml1
+![image](https://github.com/user-attachments/assets/43dd13d6-3271-4bd1-b785-da7a5b9063e5)
+
+![image](https://github.com/user-attachments/assets/efce3dc2-3a0f-4f49-8643-4e6a55f2caee)
+
