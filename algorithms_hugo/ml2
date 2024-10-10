@@ -1,0 +1,266 @@
+# Installer les bibliothèques nécessaires
+!pip install xgboost
+!pip install imbalanced-learn
+!pip install plotly
+!pip install optuna
+!pip install tensorflow
+
+# Importer les bibliothèques nécessaires
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+import optuna
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (classification_report, confusion_matrix, roc_auc_score,
+                             average_precision_score, precision_recall_curve, auc, roc_curve, f1_score)
+from sklearn.utils import shuffle
+
+# Charger le jeu de données
+file_path = 'g.csv'  # Assurez-vous que le fichier 'g.csv' est présent dans votre environnement Colab
+data = pd.read_csv(file_path)
+
+# Nettoyer les données
+data_cleaned = data.dropna(subset=['label']).copy()
+
+# Convertir le timestamp en datetime
+data_cleaned['timestamp'] = pd.to_datetime(data_cleaned['timestamp'], unit='s')
+
+# Trier les données par timestamp
+data_cleaned.sort_values('timestamp', inplace=True)
+
+# Feature Engineering
+data_cleaned['hour'] = data_cleaned['timestamp'].dt.hour
+data_cleaned['day_of_week'] = data_cleaned['timestamp'].dt.dayofweek
+data_cleaned['day_of_month'] = data_cleaned['timestamp'].dt.day
+data_cleaned['month'] = data_cleaned['timestamp'].dt.month
+
+# Normaliser la colonne 'value'
+data_cleaned['value_normalized'] = (data_cleaned['value'] - data_cleaned['value'].mean()) / data_cleaned['value'].std()
+
+# Ajouter des statistiques glissantes
+data_cleaned['rolling_mean_5'] = data_cleaned['value'].rolling(window=5).mean()
+data_cleaned['rolling_std_5'] = data_cleaned['value'].rolling(window=5).std()
+data_cleaned['rolling_mean_10'] = data_cleaned['value'].rolling(window=10).mean()
+data_cleaned['rolling_std_10'] = data_cleaned['value'].rolling(window=10).std()
+data_cleaned['value_diff'] = data_cleaned['value'].diff().fillna(0)
+data_cleaned['rolling_diff'] = data_cleaned['value_diff'].rolling(window=5).mean()
+
+# Gérer les valeurs manquantes
+data_cleaned.fillna(method='bfill', inplace=True)
+
+# Fonctionnalités sélectionnées
+features = ['value_normalized', 'hour', 'day_of_week', 'day_of_month', 'month',
+            'rolling_mean_5', 'rolling_std_5', 'rolling_mean_10', 'rolling_std_10',
+            'value_diff', 'rolling_diff']
+X = data_cleaned[features]
+y = data_cleaned['label'].astype(int)
+
+# Séparer les données en ensembles d'entraînement et de test en conservant l'ordre temporel
+split_index = int(0.8 * len(X))
+X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]
+y_train, y_test = y.iloc[:split_index], y.iloc[split_index:]
+
+# Gérer le déséquilibre des classes avec SMOTE
+from imblearn.over_sampling import SMOTE
+
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+
+# Standardiser les données
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train_resampled)
+X_test_scaled = scaler.transform(X_test)
+
+# Préparer les données pour le modèle LSTM
+def create_sequences(X, y, time_steps=10):
+    Xs, ys = [], []
+    for i in range(len(X) - time_steps):
+        Xs.append(X[i:(i+time_steps)])
+        ys.append(y[i+time_steps])
+    return np.array(Xs), np.array(ys)
+
+time_steps = 10
+X_train_seq, y_train_seq = create_sequences(X_train_scaled, y_train_resampled.values, time_steps)
+X_test_seq, y_test_seq = create_sequences(X_test_scaled, y_test.values, time_steps)
+
+# Fonction pour étendre les anomalies détectées
+def expand_anomalies(predictions, window_size):
+    expanded_pred = predictions.copy()
+    for idx in np.where(predictions == 1)[0]:
+        start = max(0, idx - window_size)
+        end = min(len(predictions), idx + window_size + 1)
+        expanded_pred[start:end] = 1
+    return expanded_pred
+
+# Utiliser Optuna pour l'optimisation des hyperparamètres
+def objective(trial):
+    # Hyperparamètres à optimiser
+    lstm_units = trial.suggest_int('lstm_units', 32, 128)
+    dropout_rate = trial.suggest_uniform('dropout_rate', 0.1, 0.5)
+    learning_rate = trial.suggest_loguniform('learning_rate', 1e-4, 1e-2)
+    batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
+    
+    model = Sequential()
+    model.add(LSTM(lstm_units, input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(1, activation='sigmoid'))
+    
+    optimizer = Adam(learning_rate=learning_rate)
+    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    
+    early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    
+    history = model.fit(X_train_seq, y_train_seq, 
+                        epochs=10, 
+                        batch_size=batch_size, 
+                        validation_split=0.1, 
+                        callbacks=[early_stopping],
+                        verbose=0)
+    
+    # Évaluer sur l'ensemble de validation
+    y_pred_proba = model.predict(X_train_seq[-len(y_train_seq)//10:]).flatten()
+    y_pred = (y_pred_proba > 0.5).astype(int)
+    y_true = y_train_seq[-len(y_train_seq)//10:]
+    f1 = f1_score(y_true, y_pred)
+    
+    # Maximiser le F1-score
+    return f1
+
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=10)
+
+best_params = study.best_params
+print("Meilleurs Hyperparamètres Trouvés:")
+print(best_params)
+
+# Entraîner le modèle final avec les meilleurs hyperparamètres
+lstm_units = best_params['lstm_units']
+dropout_rate = best_params['dropout_rate']
+learning_rate = best_params['learning_rate']
+batch_size = best_params['batch_size']
+
+model = Sequential()
+model.add(LSTM(lstm_units, input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])))
+model.add(Dropout(dropout_rate))
+model.add(Dense(1, activation='sigmoid'))
+
+optimizer = Adam(learning_rate=learning_rate)
+model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+history = model.fit(X_train_seq, y_train_seq, 
+                    epochs=50, 
+                    batch_size=batch_size, 
+                    validation_split=0.1, 
+                    callbacks=[early_stopping],
+                    verbose=1)
+
+# Afficher les courbes de perte
+plt.figure(figsize=(12, 6))
+plt.plot(history.history['loss'], label='Perte Entraînement')
+plt.plot(history.history['val_loss'], label='Perte Validation')
+plt.title('Courbe de Perte pendant l\'Entraînement')
+plt.xlabel('Époque')
+plt.ylabel('Perte')
+plt.legend()
+plt.show()
+
+# Afficher les courbes de précision
+plt.figure(figsize=(12, 6))
+plt.plot(history.history['accuracy'], label='Précision Entraînement')
+plt.plot(history.history['val_accuracy'], label='Précision Validation')
+plt.title('Courbe de Précision pendant l\'Entraînement')
+plt.xlabel('Époque')
+plt.ylabel('Précision')
+plt.legend()
+plt.show()
+
+# Prédictions sur l'ensemble de test
+y_pred_proba = model.predict(X_test_seq).flatten()
+y_pred = (y_pred_proba > 0.5).astype(int)
+
+# Expansion des anomalies
+window_size = 5
+y_pred_expanded = expand_anomalies(y_pred, window_size)
+
+# Évaluation de la performance
+performance_report = classification_report(y_test_seq, y_pred_expanded, target_names=['Normal', 'Anomaly'])
+conf_matrix = confusion_matrix(y_test_seq, y_pred_expanded)
+roc_auc = roc_auc_score(y_test_seq, y_pred_proba)
+precision, recall, thresholds = precision_recall_curve(y_test_seq, y_pred_proba)
+pr_auc = auc(recall, precision)
+
+print("Rapport de Performance (Modèle Final):")
+print(performance_report)
+print("Matrice de Confusion (Modèle Final):")
+print(conf_matrix)
+print(f"ROC-AUC Score (Modèle Final): {roc_auc:.2f}")
+print(f"PR-AUC Score (Modèle Final): {pr_auc:.2f}")
+
+# Affichage des courbes ROC et Précision-Rappel
+plt.figure(figsize=(14, 6))
+
+plt.subplot(1, 2, 1)
+fpr, tpr, _ = roc_curve(y_test_seq, y_pred_proba)
+plt.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
+plt.plot([0, 1], [0, 1], 'k--')
+plt.title('Courbe ROC (Modèle Final)')
+plt.xlabel('Taux de Faux Positifs')
+plt.ylabel('Taux de Vrais Positifs')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(recall, precision, label=f'AUC = {pr_auc:.2f}')
+plt.title('Courbe Précision-Rappel (Modèle Final)')
+plt.xlabel('Rappel')
+plt.ylabel('Précision')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# Préparer les données pour la visualisation
+data_cleaned['predicted_anomaly'] = np.nan
+# Aligner les prédictions avec les données originales
+data_cleaned.loc[X_test.index[time_steps:], 'predicted_anomaly'] = y_pred_expanded
+
+# Visualisation interactive avec Plotly
+fig = px.line(data_cleaned, x='timestamp', y='value_normalized', title="Détection d'Anomalies avec Modèle LSTM - Zoomable")
+
+# Ajouter les anomalies réelles
+fig.add_trace(go.Scatter(x=data_cleaned['timestamp'][data_cleaned['label'] == 1],
+                         y=data_cleaned['value_normalized'][data_cleaned['label'] == 1],
+                         mode='markers', name='Anomalies Réelles',
+                         marker=dict(color='red', size=8, symbol='x')))
+
+# Ajouter les anomalies prédites
+fig.add_trace(go.Scatter(x=data_cleaned['timestamp'][data_cleaned['predicted_anomaly'] == 1],
+                         y=data_cleaned['value_normalized'][data_cleaned['predicted_anomaly'] == 1],
+                         mode='markers', name='Anomalies Prédites',
+                         marker=dict(color='green', size=6, symbol='circle')))
+
+# Mise à jour des axes et ajout du zoom
+fig.update_layout(
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1h", step="hour", stepmode="backward"),
+                dict(count=1, label="1j", step="day", stepmode="backward"),
+                dict(step="all")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="date"
+    )
+)
+
+fig.show()
