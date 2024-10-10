@@ -1,0 +1,97 @@
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.offline import init_notebook_mode, iplot
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Activation de Plotly hors ligne
+init_notebook_mode(connected=True)
+
+# Charger le jeu de données
+file_path = r'C:\Tout\Barcelone\annoDet\g.csv'  # Mettez à jour avec le chemin correct du fichier CSV
+data = pd.read_csv(file_path)
+
+# Traiter les labels manquants et faire une copie pour éviter SettingWithCopyWarning
+data_cleaned = data.dropna(subset=['label']).copy()
+
+# Convertir le timestamp en datetime et créer des fonctionnalités basées sur le temps
+data_cleaned['timestamp'] = pd.to_datetime(data_cleaned['timestamp'], unit='s')
+data_cleaned['hour'] = data_cleaned['timestamp'].dt.hour
+data_cleaned['day_of_week'] = data_cleaned['timestamp'].dt.dayofweek
+data_cleaned['day_of_month'] = data_cleaned['timestamp'].dt.day
+data_cleaned['month'] = data_cleaned['timestamp'].dt.month
+
+# Normaliser la colonne 'value'
+data_cleaned['value_normalized'] = (data_cleaned['value'] - data_cleaned['value'].mean()) / data_cleaned['value'].std()
+
+# Statistiques glissantes (rolling statistics) pour générer des fonctionnalités supplémentaires
+data_cleaned['rolling_mean_5'] = data_cleaned['value'].rolling(window=5).mean()
+data_cleaned['rolling_std_5'] = data_cleaned['value'].rolling(window=5).std()
+data_cleaned['rolling_mean_10'] = data_cleaned['value'].rolling(window=10).mean()
+data_cleaned['rolling_std_10'] = data_cleaned['value'].rolling(window=10).std()
+
+# Remplir les valeurs NaN résultant des calculs de rolling avec la moyenne des colonnes
+data_cleaned.fillna(data_cleaned.mean(), inplace=True)
+
+# Définir les fonctionnalités pour l'apprentissage supervisé
+features = ['value_normalized', 'hour', 'day_of_week', 'day_of_month', 'month', 
+            'rolling_mean_5', 'rolling_std_5', 'rolling_mean_10', 'rolling_std_10']
+X = data_cleaned[features]
+y = data_cleaned['label'].astype(int)
+
+# Séparer les données en ensembles d'entraînement et de test (80% entraînement, 20% test)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardiser les fonctionnalités (normalisation des données)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Entraîner un RandomForestClassifier
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train_scaled, y_train)
+
+# Faire des prédictions sur l'ensemble de test
+y_pred = rf_model.predict(X_test_scaled)
+
+# Ajouter les prédictions au DataFrame principal (pour visualisation)
+data_cleaned['predicted_anomaly'] = np.nan
+data_cleaned.loc[X_test.index, 'predicted_anomaly'] = y_pred
+
+# Évaluer la performance du modèle
+performance_report = classification_report(y_test, y_pred, target_names=['Normal', 'Anomaly'])
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+# Afficher le rapport de classification et la matrice de confusion
+print(performance_report)
+print(conf_matrix)
+
+# Visualisation interactive avec Plotly
+fig = go.Figure()
+
+# Tracer les valeurs normales
+fig.add_trace(go.Scatter(x=data_cleaned['timestamp'], y=data_cleaned['value_normalized'],
+                         mode='lines', name='Valeur normalisée', line=dict(color='blue', width=2)))
+
+# Ajouter les labels réels (anomalies)
+fig.add_trace(go.Scatter(x=data_cleaned['timestamp'][data_cleaned['label'] == 1], 
+                         y=data_cleaned['value_normalized'][data_cleaned['label'] == 1],
+                         mode='markers', name='Anomalies Réelles', 
+                         marker=dict(color='red', size=10, symbol='x')))
+
+# Ajouter les anomalies prédites
+fig.add_trace(go.Scatter(x=data_cleaned['timestamp'][data_cleaned['predicted_anomaly'] == 1], 
+                         y=data_cleaned['value_normalized'][data_cleaned['predicted_anomaly'] == 1],
+                         mode='markers', name='Anomalies Prédites', 
+                         marker=dict(color='green', size=8, symbol='circle')))
+
+# Titre et labels des axes
+fig.update_layout(title="Détection d'Anomalies - Réelles vs Prédites",
+                  xaxis_title="Temps", yaxis_title="Valeur Normalisée")
+
+# Affichage du graphique
+iplot(fig)
+
